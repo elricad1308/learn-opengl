@@ -72,6 +72,54 @@ int main ()
      0.0f,  0.5f, 0.0f
   };
 
+  /**
+   * Este conjunto de vértices permite dibujar un rectángulo usando dos
+   * triángulos (OpenGL está diseñado para trabajar con triángulos). Sin
+   * embargo, nota que dos vértices se especificaron dos veces: el infe-
+   * rior derecho y el superior izquierdo. Aunque al principio pudiera
+   * parecer que no tiene importancia, cuando el modelo crece de sólo
+   * dos triángulos a tener más de mil (lo cual no es raro), la sobre-
+   * carga de memoria puede llegar a ser un problema, especialmente to-
+   * mando en cuanta la cantidad de memoria limitada con la que suelen
+   * contar los GPU.
+   */
+  float rectangle[] = {
+    // Primer triángulo
+     0.5f,  0.5f, 0.0f,    // superior derecho
+     0.5f, -0.5f, 0.0f,    // inferior derecho
+    -0.5f,  0.5f, 0.0f,    // superior izquierdo
+
+    // Segundo triángulo
+     0.5f, -0.5f, 0.0f,    // inferior derecho
+    -0.5f, -0.5f, 0.0f,    // inferior izquierdo
+    -0.5f,  0.5f, 0.0f     // superior izquierdo
+  };
+
+  /**
+   * Este conjunto de vértices permite dibujar el mismo rectángulo de
+   * arriba, pero contiene datos únicos: usaremos un Objeto Buffer de
+   * Elementos (Element Buffer Object, EBO)  para indicarle a OpenGL
+   * el índice de los vértices que deseamos utilizar; de esta forma,
+   * para dibujar un rectángulo requerimos de sólo 4 vértices en lugar
+   * de los 6 requeridos para dibujar dos triángulos.
+   */
+  float rect_vertices[] = {
+     0.5f,  0.5f, 0.0f,    // superior derecho
+     0.5f, -0.5f, 0.0f,    // inferior derecho
+    -0.5f, -0.5f, 0.0f,    // inferior izquierdo
+    -0.5f,  0.5f, 0.0f     // superior izquierdo
+  };
+
+  /**
+   * Estos son los índices de los vértices que usaremos para dibujar el
+   * rectángulo; el EBO los usará para extraer los datos de los vértices
+   * definidos arriba y reutilizarlos conforme los necesite.
+   */
+  unsigned int indices[] = {
+    0, 1, 3,    // Primer triángulo
+    1, 2, 3     // Segundo triángulo
+  };
+
   // -------------------------------------------------------------------
   // Inicialización de glfw (explicado en el programa anterior)
   glfwInit();
@@ -265,6 +313,16 @@ int main ()
   // ra accidental
   glBindVertexArray(0);
 
+  // Crea un Element Buffer Object, que utilizaremos para dibujar los
+  // dos rectángulos usando los índices de los vértices
+  unsigned int EBO;
+  glGenBuffers(1, &EBO);
+
+  // Al igual que el VBO, el EBO debe vincularse para transferir los
+  // datos de los vertices
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
   // Ciclo de renderizado
   while (!glfwWindowShouldClose(window))
   {
@@ -273,7 +331,7 @@ int main ()
     glClear(GL_COLOR_BUFFER_BIT);
 
     // Dibuja el triángulo
-    glUseProgram(shaderProgram);
+    glUseProgram(shaderProgram);    
     glBindVertexArray(VAO);
     glDrawArrays(GL_TRIANGLES, 0, 3);
 
