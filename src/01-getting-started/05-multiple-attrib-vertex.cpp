@@ -1,39 +1,41 @@
 #include <iostream>
-#include <math.h>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
-void framebuffer_size_callback (GLFWwindow *window, int width, int height);
-void process_input (GLFWwindow *window);
-
 const char *fragmentShaderSource = "#version 330 core\n"
+  "in vec3 ourColor;\n"
   "out vec4 FragColor;\n"
-  "uniform vec4 ourColor;\n"
   "void main ()\n"
   "{\n"
-  "  FragColor = ourColor;\n"
+  "  FragColor = vec4(ourColor, 1.0f);\n"
   "}\0";
 
 const char *vertexShaderSource = "#version 330 core\n"
   "layout (location = 0) in vec3 aPos;\n"
+  "layout (location = 1) in vec3 aColor;\n"
+  "out vec3 ourColor;\n"
   "void main ()\n"
   "{\n"
-  "  gl_Position = vec4(aPos, 1.0);\n"  
+  "  gl_Position = vec4(aPos, 1.0);\n"
+  "  ourColor = aColor;\n"
   "}\0";
+
+void framebuffer_size_callback (GLFWwindow *window, int width, int height);
+void process_input (GLFWwindow *window);
 
 int main ()
 {
   // Variables
   char infoLog[512];
-  float greenValue, timeValue;
+  int success;
   float vertices[] = {
-    -0.5f, -0.5f, 0.0f,
-     0.0f,  0.5f, 0.0f,
-     0.5f, -0.5f, 0.0f
-  };  
-  int success, vertexColorLocation;
-  unsigned int vertexShader, fragmentShader, programShader;
+    // Posiciones       // Colores
+    -0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f, // Inferior izquierdo
+     0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 0.0f, // Inferior derecho
+     0.0f,  0.5f, 0.0f, 0.0f, 0.0f, 1.0f  // Superior 
+  };
   unsigned int VAO, VBO;
+  unsigned int vertexShader, fragmentShader, shaderProgram;
   GLFWwindow *window;
 
   // Inicialización
@@ -41,16 +43,16 @@ int main ()
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-  window = glfwCreateWindow(800, 600, "Shader con uniform", NULL, NULL);
+  window = glfwCreateWindow(800, 600, "Multiple Attribs", NULL, NULL);
 
   if (window == NULL)
   {
-    std::cout << "Error al crear el contexto" << std::endl;
+    std::cout << "Error al crear la ventana" << std::endl;
     glfwTerminate();
     return -1;
   }
   glfwMakeContextCurrent(window);
-  
+
   if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
   {
     std::cout << "Error al inicializar GLAD" << std::endl;
@@ -69,7 +71,7 @@ int main ()
   if (!success)
   {
     glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-    std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << std::endl;
+    std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
   }
 
   fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
@@ -80,25 +82,24 @@ int main ()
   if (!success)
   {
     glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
-    std::cout << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" << std::endl;
+    std::cout << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" << infoLog << std::endl;
   }
 
-  programShader = glCreateProgram();
-  glAttachShader(programShader, vertexShader);
-  glAttachShader(programShader, fragmentShader);
-  glLinkProgram(programShader);
-  glGetProgramiv(programShader, GL_LINK_STATUS, &success);
+  shaderProgram = glCreateProgram();
+  glAttachShader(shaderProgram, vertexShader);
+  glAttachShader(shaderProgram, fragmentShader);
+  glLinkProgram(shaderProgram);
+  glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
 
   if (!success)
   {
-    glGetProgramInfoLog(programShader, 512, NULL, infoLog);
+    glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
     std::cout << "ERROR::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
   }
 
+  glUseProgram(shaderProgram);
   glDeleteShader(vertexShader);
   glDeleteShader(fragmentShader);
-  glUseProgram(programShader);
-  vertexColorLocation = glGetUniformLocation(programShader, "ourColor");
 
   // Buffers
   glGenVertexArrays(1, &VAO);
@@ -106,10 +107,15 @@ int main ()
 
   glBindVertexArray(VAO);
   glBindBuffer(GL_ARRAY_BUFFER, VBO);
-  
   glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3*sizeof(float), (void*)0);
+
+  // Atributo de posición
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
   glEnableVertexAttribArray(0);
+
+  // Atributo de color
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+  glEnableVertexAttribArray(1);
 
   glBindBuffer(GL_ARRAY_BUFFER, 0);
   glBindVertexArray(0);
@@ -121,27 +127,18 @@ int main ()
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    timeValue = glfwGetTime();
-    greenValue = (sin(timeValue) / 2.0f) + 0.5f;    
-    glUniform4f(vertexColorLocation, 0.3f, greenValue, 0.3f, 1.0f);
-
     glBindVertexArray(VAO);
     glDrawArrays(GL_TRIANGLES, 0, 3);
     glBindVertexArray(0);
 
     glfwSwapBuffers(window);
-    glfwPollEvents(); 
+    glfwPollEvents();
   }
-
-  // Opcional, muestra cantidad máxima de atributos de vértices
-  // soportados por el hardware.
-  glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &success);
-  std::cout << "Maximum number of vertex attributes supported: " << success << std::endl;
 
   // Limpieza
   glDeleteBuffers(1, &VBO);
   glDeleteVertexArrays(1, &VAO);
-  glDeleteProgram(programShader);
+  glDeleteProgram(shaderProgram);
   glfwTerminate();
 
   return 0;
