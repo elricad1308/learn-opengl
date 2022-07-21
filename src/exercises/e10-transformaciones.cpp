@@ -1,4 +1,5 @@
 #include <iostream>
+#include <math.h>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
@@ -18,20 +19,22 @@ const int WINDOW_WIDTH = 800;
 int main ()
 {
   // Variables
+  // -------------------------------------------------------------------
   int channels, height, width;
   int indices[] = {
     0, 1, 3,
     1, 2, 3
   };
+  float scale, time;
   float vertex_data[] = {
-    // Posicion          // Color           // Tex coords
+    // Posicion          // Color           // Tex Coord
     -0.5f, -0.5f, 0.0f,  1.0f, 0.0f, 0.0f,  0.0f, 0.0f, // Inf izq
-    -0.5f,  0.5f, 0.0f,  0.0f, 1.0f, 0.0f,  0.0f, 1.0f, // Sup izq
+    -0.5f,  0.5f, 0.0f,  0.0f, 1.0f, 0.0f,  0.0f, 1.0f, // Sup Izq
      0.5f,  0.5f, 0.0f,  0.0f, 0.0f, 1.0f,  1.0f, 1.0f, // Sup der
      0.5f, -0.5f, 0.0f,  1.0f, 1.0f, 0.0f,  1.0f, 0.0f  // Inf der
   };
   unsigned char *imageData;
-  unsigned int texture, transformLoc, EBO, VAO, VBO;
+  unsigned int texturas[2], transformLoc, EBO, VAO, VBO;
   glm::mat4 trans;
   GLFWwindow *window;
 
@@ -42,23 +45,22 @@ int main ()
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-  window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Transformaciones", NULL, NULL);
+  window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Ejercicio 10", NULL, NULL);
   if (window == NULL)
   {
     std::cout << "Error al crear la ventana" << std::endl;
     glfwTerminate();
     return -1;
   }
+
   glfwMakeContextCurrent(window);
   glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
   if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
   {
     std::cout << "Error al cargar las funciones de OpenGL" << std::endl;
-    glfwTerminate();
     return -1;
   }
-  glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
 
   // Buffers
   // -------------------------------------------------------------------
@@ -67,13 +69,13 @@ int main ()
   glGenBuffers(1, &EBO);
 
   glBindVertexArray(VAO);
+
   glBindBuffer(GL_ARRAY_BUFFER, VBO);
   glBufferData(GL_ARRAY_BUFFER, sizeof(vertex_data), vertex_data, GL_STATIC_DRAW);
-
+  
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
   glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
   glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
-
   glEnableVertexAttribArray(0);
   glEnableVertexAttribArray(1);
   glEnableVertexAttribArray(2);
@@ -87,15 +89,14 @@ int main ()
 
   // Texturas
   // -------------------------------------------------------------------
-  glGenTextures(1, &texture);
-  glBindTexture(GL_TEXTURE_2D, texture);
+  glGenTextures(2, texturas);
+  glBindTexture(GL_TEXTURE_2D, texturas[0]);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-  stbi_set_flip_vertically_on_load(true);
-  imageData = stbi_load("../../textures/awesomeface-2.jpg", &width, &height, &channels, 0);
+  imageData = stbi_load("../../textures/container.jpg", &width, &height, &channels, 0);
   if (imageData)
   {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, imageData);
@@ -103,7 +104,26 @@ int main ()
   }
   else
   {
-    std::cout << "Error al cargar la textura" << std::endl;
+    std::cout << "Error al cargar la textura 1" << std::endl;
+  }
+  stbi_image_free(imageData);
+
+  glBindTexture(GL_TEXTURE_2D, texturas[1]);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+  stbi_set_flip_vertically_on_load(true);
+  imageData = stbi_load("../../textures/awesomeface.png", &width, &height, &channels, 0);
+  if (imageData)
+  {
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, imageData);
+    glGenerateMipmap(GL_TEXTURE_2D);
+  }
+  else
+  {
+    std::cout << "Error al cargar la textura 2" << std::endl;
   }
   stbi_image_free(imageData);
 
@@ -112,22 +132,14 @@ int main ()
   Shader ourShader("../shaders/transform.vs.glsl", "../shaders/texture.fs.glsl");
   ourShader.use();
 
-  // Transformaciones
-  // Crea una matriz identidad de 4x4
-  // Las transformaciones se aplican en orden inverso a como se crean
-  // (primero se escala, luego se rota)
-  trans = glm::mat4(1.0f);
+  ourShader.setInt("texture1", 0);
+  ourShader.setInt("texture2", 1);
 
-  // Aplica una rotación de 90° en el eje Z
-  // GLM trabaja con radianes, y por eso deben convertirse
-  trans = glm::rotate(trans, glm::radians(45.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-
-  // Aplica un escalado de 1/2
-  trans = glm::scale(trans, glm::vec3(0.5, 0.5, 0.5));
-
-  // Envía la matriz de transformación al uniform del shader
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, texturas[0]);
+  glActiveTexture(GL_TEXTURE1);
+  glBindTexture(GL_TEXTURE_2D, texturas[1]);
   transformLoc = glGetUniformLocation(ourShader.ID, "transform");
-  glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(trans));
 
   // Ciclo de renderizado
   // -------------------------------------------------------------------
@@ -136,21 +148,22 @@ int main ()
     process_input(window);
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
+    time = (float)glfwGetTime();
 
-    // Transformación continua
     trans = glm::mat4(1.0f);
-    
-    // Mueve el contenedor a la esquina inferior derecha
     trans = glm::translate(trans, glm::vec3(0.5f, -0.5f, 0.0f));
-
-    // Rota el contenedor con base el tiempo de ejecución
-    trans = glm::rotate(trans, (float)glfwGetTime(), glm::vec3(0.0f, 0.0f, 1.0f));
-
-    // Envía la matriz de transformación al uniform del shader
+    trans = glm::rotate(trans, time, glm::vec3(0.0f, 0.0f, 1.0f));
     glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(trans));
 
     glBindVertexArray(VAO);
-    glBindTexture(GL_TEXTURE_2D, texture);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+    scale = static_cast<float>(sin(time));
+    trans = glm::mat4(1.0f);    
+    trans = glm::translate(trans, glm::vec3(-0.5f, 0.5f, 0.0f));
+    trans = glm::scale(trans, glm::vec3(scale, scale, scale));
+    glUniformMatrix4fv(transformLoc, 1, GL_FALSE, &trans[0][0]);
+
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
 
@@ -161,7 +174,7 @@ int main ()
   // Limpieza
   // -------------------------------------------------------------------
   ourShader.clear();
-  glDeleteTextures(1, &texture);
+  glDeleteTextures(2, texturas);
   glDeleteBuffers(1, &EBO);
   glDeleteBuffers(1, &VBO);
   glDeleteVertexArrays(1, &VAO);
