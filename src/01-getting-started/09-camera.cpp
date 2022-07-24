@@ -1,4 +1,5 @@
 #include <iostream>
+#include <math.h>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
@@ -9,79 +10,79 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
-void framebuffer_size_callback (GLFWwindow *window, int width, int height);
-void process_input (GLFWwindow *window);
-
 const int WINDOW_HEIGHT = 600;
 const int WINDOW_WIDTH = 800;
+
+void framebuffer_size_callback (GLFWwindow *window, int width, int height);
+void process_input (GLFWwindow *window);
 
 int main ()
 {
   // Variables
+  // -------------------------------------------------------------------
   int channels, height, width;
   int indices[] = {
-    // TOP
-    8, 10, 11, 
-    8, 9, 10, 
-
-    // BOTTOM
-    12, 14, 15,
-    12, 13, 14,
-    
-    // FRONT
-    0, 1, 3,  // BL - TL - BR
-    1, 2, 3,  // TL - TR - BL
-
-    // BACK
-    4, 5, 7,  // BR - TR - BL
-    5, 6, 7,  // TR - TL - BL    
-
-    // LEFT
-    0, 4, 1,  // FBL - BBR - FTL
-    1, 5, 4,  // FTL - BTR - BBR
-
-    // RIGHT
-    7, 3, 6,  // BBL - FBR - BTL
-    6, 2, 3,  // BTL - FTR - FBR 
+    // Frente
+    0, 1, 2,
+    0, 2, 3,
+    // Atrás
+    4, 5, 6,
+    4, 6, 7,
+    // Izquierda
+    0, 6, 7,
+    0, 1, 6,
+    // Derecha
+    3, 4, 5,
+    2, 3, 5,
+    // Arriba/Abajo
+    8, 9, 10,
+    8, 10, 11,
   };
+  float camX, camZ;
   float vertex_data[] = {
-    // FRONT
-    -0.5f, -0.5f,  0.5f, 0.0f, 0.0f,  // 0  - BL
-    -0.5f,  0.5f,  0.5f, 0.0f, 1.0f,  // 1  - TL
-     0.5f,  0.5f,  0.5f, 1.0f, 1.0f,  // 2  - TR
-     0.5f, -0.5f,  0.5f, 1.0f, 0.0f,  // 3  - BR
+    // Frente
+    -0.5f, -0.5f, 0.5f, 0.0f, 0.0f, // 0
+    -0.5f,  0.5f, 0.5f, 0.0f, 1.0f, // 1    1 2
+     0.5f,  0.5f, 0.5f, 1.0f, 1.0f, // 2    0 3
+     0.5f, -0.5f, 0.5f, 1.0f, 0.0f, // 3
 
-    // BACK
-    -0.5f, -0.5f, -0.5f, 1.0f, 0.0f,  // 4  - BR
-    -0.5f,  0.5f, -0.5f, 1.0f, 1.0f,  // 5  - TR
-     0.5f,  0.5f, -0.5f, 0.0f, 1.0f,  // 6  - TL
-     0.5f, -0.5f, -0.5f, 0.0f, 0.0f,  // 7  - BL
+     // Atrás
+    0.5f, -0.5f, -0.5f, 0.0f, 0.0f, // 4
+    0.5f,  0.5f, -0.5f, 0.0f, 1.0f, // 5    6 5
+   -0.5f,  0.5f, -0.5f, 1.0f, 1.0f, // 6    7 4
+   -0.5f, -0.5f, -0.5f, 1.0f, 0.0f, // 7
 
-    // TOP
-    -0.5f,  0.5f, -0.5f, 0.0f, 1.0f,  // 8
-     0.5f,  0.5f, -0.5f, 1.0f, 1.0f,  // 9
-     0.5f,  0.5f,  0.5f, 1.0f, 0.0f,  // 10
-    -0.5f,  0.5f,  0.5f, 0.0f, 0.0f,  // 11
-
-    // BOTTOM
-    -0.5f, -0.5f, -0.5f, 0.0f, 1.0f,  // 12
-     0.5f, -0.5f, -0.5f, 1.0f, 1.0f,  // 13
-     0.5f, -0.5f,  0.5f, 1.0f, 0.0f,   // 14
-    -0.5f, -0.5f,  0.5f, 0.0f, 0.0f,  // 15
+   // Arriba
+   -0.5f,  0.5f,  0.5f, 0.0f, 0.0f, // 8
+   -0.5f,  0.5f, -0.5f, 0.0f, 1.0f, // 9    9 10
+    0.5f,  0.5f, -0.5f, 1.0f, 1.0f, // 10   8 11
+    0.5f,  0.5f,  0.5f, 1.0f, 0.0f, // 11
   };
   unsigned char *imageData;
-  unsigned int textures[2];
-  unsigned int matLocation, EBO, VAO, VBO;
+  unsigned int matLocation, textures[2], EBO, VAO, VBO;
   GLFWwindow *window;
+  glm::vec3 cubePositions[] = {
+    glm::vec3( 0.0f,  0.0f,   0.0f),
+    glm::vec3( 2.0f,  5.0f, -15.0f),
+    glm::vec3(-1.5f, -2.2f,  -2.5f),
+    glm::vec3(-3.8f, -2.0f, -12.3f),
+    glm::vec3( 2.4f, -0.4f,  -3.5f),
+    glm::vec3(-1.7f,  3.0f,  -7.5f),
+    glm::vec3( 1.3f, -2.0f,  -2.5f),
+    glm::vec3( 1.5f,  2.0f,  -2.5f),
+    glm::vec3( 1.5f,  0.2f,  -1.5f),
+    glm::vec3(-1.3f,  1.0f,  -1.5f),
+  };
   glm::mat4 model, view, projection;
 
   // Inicialización
+  // -------------------------------------------------------------------
   glfwInit();
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-  window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Ejercicio 11", NULL, NULL);
+  window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Camera", NULL, NULL);
   if (window == NULL)
   {
     std::cout << "Error al crear la ventana" << std::endl;
@@ -101,6 +102,7 @@ int main ()
   glEnable(GL_DEPTH_TEST);
 
   // Buffers
+  // -------------------------------------------------------------------
   glGenVertexArrays(1, &VAO);
   glGenBuffers(1, &VBO);
   glGenBuffers(1, &EBO);
@@ -109,8 +111,10 @@ int main ()
 
   glBindBuffer(GL_ARRAY_BUFFER, VBO);
   glBufferData(GL_ARRAY_BUFFER, sizeof(vertex_data), vertex_data, GL_STATIC_DRAW);
+
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
   glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+
   glEnableVertexAttribArray(0);
   glEnableVertexAttribArray(1);
 
@@ -122,6 +126,7 @@ int main ()
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
   // Texturas
+  // -------------------------------------------------------------------
   glGenTextures(2, textures);
   glBindTexture(GL_TEXTURE_2D, textures[0]);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -149,6 +154,7 @@ int main ()
 
   stbi_set_flip_vertically_on_load(true);
   imageData = stbi_load("../../textures/awesomeface.png", &width, &height, &channels, 0);
+
   if (imageData)
   {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, imageData);
@@ -161,28 +167,24 @@ int main ()
   stbi_image_free(imageData);
 
   // Shaders
-  Shader ourShader("../shaders/coord-system.vs.glsl", "../shaders/texture.fs.glsl");
+  // -------------------------------------------------------------------
+  Shader ourShader("../shaders/cube.vs.glsl", "../shaders/texture.fs.glsl");
   ourShader.use();
   ourShader.setInt("texture1", 0);
-  ourShader.setInt("texture2", 1);  
+  ourShader.setInt("texture2", 1);
 
   // Transformaciones
-  matLocation = glGetUniformLocation(ourShader.ID, "view");
-  view = glm::mat4(1.0f);
-  view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
-  glUniformMatrix4fv(matLocation, 1, GL_FALSE, glm::value_ptr(view));
-
-  matLocation = glGetUniformLocation(ourShader.ID, "projection");  
+  // -------------------------------------------------------------------
   projection = glm::perspective(glm::radians(45.0f), (float)WINDOW_WIDTH / (float)WINDOW_HEIGHT, 0.1f, 100.f);
+  matLocation = glGetUniformLocation(ourShader.ID, "projection");
   glUniformMatrix4fv(matLocation, 1, GL_FALSE, glm::value_ptr(projection));
 
-  matLocation = glGetUniformLocation(ourShader.ID, "model");
-
   // Ciclo de renderizado
+  // -------------------------------------------------------------------
   while (!glfwWindowShouldClose(window))
   {
     process_input(window);
-    glClearColor(0.2f, 0.3f, 0.4f, 1.0f);
+    glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glActiveTexture(GL_TEXTURE0);
@@ -190,12 +192,55 @@ int main ()
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, textures[1]);
 
-    model = glm::mat4(1.0f);
-    model = glm::rotate(model, (float)glfwGetTime(), glm::vec3(0.5f, 1.0f, 0.0f));
-    glUniformMatrix4fv(matLocation, 1, GL_FALSE, glm::value_ptr(model));
+    // Cámara
+    matLocation = glGetUniformLocation(ourShader.ID, "view");
+    camX = sin(glfwGetTime()) * 10.0f;
+    camZ = cos(glfwGetTime()) * 10.0f;
 
+    // Genera una matriz 'lookAt', que nos permite transformar las coor-
+    // denadas del sistema global a las coordenadas del punto de vista
+    // de la cámara, lo que permite posicionar la escena de modo tal que
+    // simule ser visto a través de una cámara
+    view = glm::lookAt(
+      // Vector de posición de la cámara, indica las coordenadas dentro
+      // del mundo en el cual se encuentra colocada la cámara
+      glm::vec3(camX, 0.0f, camZ),
+
+      // Vector de dirección de la cámara, indica las coordenadas dentro
+      // del mundo hacia las cuales la cámara está mirando
+      glm::vec3(0.0f, 0.0f, 0.0f),
+
+      // Vector 'up', indica la posición que se considera 'arriba' den-
+      // tro del sistema coordenado del mundo, es utilizado por la li-
+      // brería GLM para calcular vectores ortogonales hacia arriba y la
+      // derecha con origen en la cámara, los cuales constituyen su eje
+      // coordenado
+      glm::vec3(0.0f, 1.0f, 0.0f)
+    );
+    glUniformMatrix4fv(matLocation, 1, GL_FALSE, glm::value_ptr(view));
+
+    matLocation = glGetUniformLocation(ourShader.ID, "model");
     glBindVertexArray(VAO);
-    glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+    for (unsigned int i = 0; i < 10; i++)
+    {
+      model = glm::mat4(1.0f);
+      model = glm::translate(model, cubePositions[i]);
+      if (i == 0)
+      {
+        model = glm::rotate(model, (float)glfwGetTime(), glm::vec3(0.5f, 1.0f, 0.0f));
+      }
+      else
+      {
+        model = glm::rotate(model, glm::radians(20.0f * i), glm::vec3(1.0f, 0.3f, 0.5f));
+      }      
+      glUniformMatrix4fv(matLocation, 1, GL_FALSE, glm::value_ptr(model));
+
+      ourShader.setFloat("invert", 1.0f);
+      glDrawElements(GL_TRIANGLES, 30, GL_UNSIGNED_INT, 0);
+      // Dibuja el fondo
+      ourShader.setFloat("invert", -1.0f);
+      glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)(24 * sizeof(int)));      
+    }
     glBindVertexArray(0);
 
     glfwSwapBuffers(window);
@@ -203,6 +248,7 @@ int main ()
   }
 
   // Limpieza
+  // -------------------------------------------------------------------
   ourShader.clear();
   glDeleteTextures(2, textures);
   glDeleteBuffers(1, &EBO);
