@@ -146,7 +146,7 @@ public:
    *   trained to avoid reaching 90 degrees both up and down. It helps
    *   prevent gimball locks. Defaults to true
    */
-  void ProcessMovement (float xOffset, float yOffset, GLboolean constrainPitch = true)
+  void ProcessMouseMovement (float xOffset, float yOffset, GLboolean constrainPitch = true)
   {
     Yaw += xOffset * MouseSensitivity;
     Pitch += yOffset * MouseSensitivity;
