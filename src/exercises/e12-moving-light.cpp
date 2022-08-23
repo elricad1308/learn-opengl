@@ -75,6 +75,7 @@ int main ()
   };
   unsigned int VAO[2], VBO;
   GLFWwindow *window;
+  glm::vec3 lightPos;
   glm::mat4 model, view, projection;
 
   // Inicialización
@@ -148,9 +149,11 @@ int main ()
     // Object rendering
     model = glm::mat4(1.0f);
     view = camera.GetViewMatrix();
-    projection = glm::perspective(camera.Zoom, aspect_ratio, 0.1f, 100.0f);
+    projection = glm::perspective(glm::radians(camera.Zoom), aspect_ratio, 0.1f, 100.0f);
 
     objectShader.use();
+    objectShader.setVec3("lightPos", lightPos);
+    objectShader.setVec3("viewPos", camera.Position);
     objectShader.setMat4("model", model);
     objectShader.setMat4("view", view);
     objectShader.setMat4("projection", projection);
@@ -159,11 +162,12 @@ int main ()
     glDrawArrays(GL_TRIANGLES, 0, 36);
     glBindVertexArray(0);
 
+    lightPos = glm::vec3(sin(currentFrame), 1.0f, cos(currentFrame));
     model = glm::mat4(1.0f);
-    model = glm::translate(model, glm::vec3(1.2f, 1.0f, 2.0f));
+    model = glm::translate(model, lightPos);
     model = glm::scale(model, glm::vec3(0.2f));
 
-    lightShader.use();
+    lightShader.use();    
     lightShader.setMat4("model", model);
     lightShader.setMat4("view", view);
     lightShader.setMat4("projection", projection);
